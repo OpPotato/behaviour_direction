@@ -203,6 +203,11 @@ def run_pipeline(args):
     print("=" * 60)
 
 
-if __name__ == "__main__":
+def main():
+    """CLI entry point."""
     args = parse_arguments()
     run_pipeline(args)
+
+
+if __name__ == "__main__":
+    main()

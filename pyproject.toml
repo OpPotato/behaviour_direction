@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "behaviour_direction"
+version = "0.1.0"
+description = "Behavior direction ablation for LLMs using CAA-style steering"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=4.35.0",
+    "jaxtyping>=0.2.0",
+    "tqdm>=4.65.0",
+    "matplotlib>=3.7.0",
+    "einops>=0.6.0",
+    "python-dotenv>=1.0.0",
+    "accelerate>=0.24.0",
+]
+
+[project.optional-dependencies]
+# For GPT-based evaluation scoring
+openai = ["openai>=1.0.0"]
+# For development
+dev = ["pytest", "ipython"]
+# Full install
+all = ["behaviour_direction[openai,dev]"]
+
+[project.scripts]
+# CLI entry point
+run-behaviour-pipeline = "pipeline.run_pipeline:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pipeline*", "dataset*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]
+
