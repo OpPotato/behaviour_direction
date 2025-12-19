@@ -17,6 +17,9 @@ import random
 import json
 import os
 import argparse
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from pipeline.config import Config
 from pipeline.model_utils.model_factory import construct_model_base
