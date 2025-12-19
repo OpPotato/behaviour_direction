@@ -24,7 +24,9 @@ from pipeline.submodules.generate_directions import generate_directions
 from pipeline.submodules.select_direction import select_direction
 from pipeline.submodules.evaluate_behaviour import evaluate_ab, evaluate_open_ended, save_evaluation
 from dataset.load_dataset import load_generate_dataset, load_test_dataset_ab, load_test_dataset_open_ended, get_ab_pairs
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def parse_arguments():
     """Parse command line arguments."""
