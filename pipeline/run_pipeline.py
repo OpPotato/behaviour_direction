@@ -39,7 +39,7 @@ def parse_arguments():
     parser.add_argument('--skip_eval_ab', action='store_true', help='Skip A/B evaluation')
     parser.add_argument('--skip_eval_open', action='store_true', help='Skip open-ended evaluation')
     parser.add_argument('--no_gpt_scoring', action='store_true', help='Disable GPT scoring for open-ended')
-    parser.add_argument('--scoring_model', type=str, default='openai/gpt-4o-mini', 
+    parser.add_argument('--scoring_model', type=str, default='anthropic/claude-opus-4.5', 
                         help='OpenRouter model for scoring (e.g., openai/gpt-4o-mini, anthropic/claude-3.5-sonnet)')
     return parser.parse_args()
 
