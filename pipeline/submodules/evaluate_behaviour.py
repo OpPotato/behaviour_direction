@@ -7,6 +7,7 @@ Two evaluation modes:
 """
 
 import os
+import re
 import json
 import torch
 from typing import List, Dict, Tuple
@@ -206,6 +207,10 @@ def score_with_gpt(question: str, answer: str, behavior: str, model: str = DEFAU
     
     score_text = response.choices[0].message.content.strip()
     try:
+        # Extract leading number (handles "10 The answer..." or "7.5 because...")
+        match = re.match(r'^(\d+\.?\d*)', score_text)
+        if match:
+            return float(match.group(1))
         return float(score_text)
     except ValueError:
         print(f"Warning: Could not parse score '{score_text}', returning -1")

@@ -15,7 +15,7 @@ python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf
 
 ## Available variants
 # Llama 2 variants
-python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf
+python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --scoring_model anthropic/claude-opus-4.5
 python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-13b-chat-hf
 
 # Llama 3
