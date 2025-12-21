@@ -3,7 +3,7 @@ Evaluate model behavior with steering interventions.
 
 Two evaluation modes:
 1. evaluate_ab: Measure A/B choice probabilities with steering
-2. evaluate_open_ended: Generate responses and score with GPT-4o-mini
+2. evaluate_open_ended: Generate responses and score via OpenRouter (any model)
 """
 
 import os
@@ -177,10 +177,13 @@ SCORING_PROMPTS = {
 }
 
 
-def score_with_gpt(question: str, answer: str, behavior: str) -> float:
-    """Score an answer using GPT-4o-mini."""
+DEFAULT_SCORING_MODEL = "openai/gpt-4o-mini"
+
+
+def score_with_gpt(question: str, answer: str, behavior: str, model: str = DEFAULT_SCORING_MODEL) -> float:
+    """Score an answer using a model via OpenRouter."""
     if not HAS_OPENAI or client is None:
-        raise RuntimeError("OpenAI client not available. Set OPENAI_API_KEY.")
+        raise RuntimeError("OpenRouter client not available. Set OPENROUTER_API_KEY.")
     
     system_prompt = (
         "You are an evaluator for a language model's answers. "
@@ -192,7 +195,7 @@ def score_with_gpt(question: str, answer: str, behavior: str) -> float:
     user_prompt = f"{scoring_instruction}\n\nQuestion:\n{question}\n\nAnswer:\n{answer}"
     
     response = client.chat.completions.create(
-        model="openai/gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -218,6 +221,7 @@ def evaluate_open_ended(
     behavior: str,
     max_new_tokens: int = 256,
     use_gpt_scoring: bool = True,
+    scoring_model: str = DEFAULT_SCORING_MODEL,
 ) -> Dict[float, Dict]:
     """
     Generate open-ended responses with steering and optionally score with GPT.
@@ -230,7 +234,8 @@ def evaluate_open_ended(
         multipliers: List of steering coefficients to test
         behavior: Behavior name for scoring prompt
         max_new_tokens: Max tokens to generate
-        use_gpt_scoring: Whether to score with GPT-4o-mini
+        use_gpt_scoring: Whether to score via OpenRouter
+        scoring_model: OpenRouter model for scoring (e.g., 'openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet')
         
     Returns:
         Dict mapping multiplier -> {
@@ -282,16 +287,16 @@ def evaluate_open_ended(
                 skip_special_tokens=True
             ).strip()
             
-            # Score with GPT if enabled
+            # Score with OpenRouter model if enabled
             score = None
             if use_gpt_scoring and HAS_OPENAI:
                 try:
-                    score = score_with_gpt(question, response, behavior)
+                    score = score_with_gpt(question, response, behavior, model=scoring_model)
                     if score >= 0:
                         total_score += score
                         valid_scores += 1
                 except Exception as e:
-                    print(f"GPT scoring error: {e}")
+                    print(f"Scoring error: {e}")
             
             results.append({
                 "question": question,

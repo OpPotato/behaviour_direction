@@ -39,6 +39,8 @@ def parse_arguments():
     parser.add_argument('--skip_eval_ab', action='store_true', help='Skip A/B evaluation')
     parser.add_argument('--skip_eval_open', action='store_true', help='Skip open-ended evaluation')
     parser.add_argument('--no_gpt_scoring', action='store_true', help='Disable GPT scoring for open-ended')
+    parser.add_argument('--scoring_model', type=str, default='openai/gpt-4o-mini', 
+                        help='OpenRouter model for scoring (e.g., openai/gpt-4o-mini, anthropic/claude-3.5-sonnet)')
     return parser.parse_args()
 
 
@@ -172,6 +174,8 @@ def run_pipeline(args):
     # =========================================================================
     if not args.skip_eval_open:
         print("\n[5b/5] Evaluating open-ended questions...")
+        if not args.no_gpt_scoring:
+            print(f"  Scoring model: {args.scoring_model}")
         
         # Use a subset of multipliers for open-ended (expensive with GPT)
         open_multipliers = [m for m in cfg.steering_multipliers if m in [-1.0, 0.0, 1.0]]
@@ -185,6 +189,7 @@ def run_pipeline(args):
             behavior=cfg.behavior,
             max_new_tokens=cfg.max_new_tokens,
             use_gpt_scoring=not args.no_gpt_scoring,
+            scoring_model=args.scoring_model,
         )
         
         save_evaluation(open_results, os.path.join(eval_dir, "open_ended_evaluation.json"))
