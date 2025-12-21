@@ -5,11 +5,10 @@ For CAA-style evaluation, we measure how well each direction affects
 the model's A/B choice probabilities:
 
 1. For each candidate direction (per layer):
-   - Add the direction to activations
-   - Measure P(matching answer) vs P(not matching answer)
-   
-2. Select the direction that best increases matching behavior probability
-   while keeping KL divergence low (doesn't break the model).
+    - Add the direction to activations
+    - Measure P(matching answer) vs P(not matching answer)
+
+2. Select the direction that best increases matching behavior probability while keeping KL divergence low (doesn't break the model).
 
 The "behavior score" is: log(P(matching)) - log(P(not matching))
 Higher = model more likely to give the "desired" answer.
@@ -139,7 +138,7 @@ def get_behavior_scores(
     """
     questions = [p["question"] for p in ab_pairs]
     matching_is_a = [p["positive_answer"].strip().endswith("A)") or 
-                     p["positive_answer"].strip() == "(A)" for p in ab_pairs]
+                    p["positive_answer"].strip() == "(A)" for p in ab_pairs]
     
     scores = torch.zeros(len(questions), device=model.device)
     

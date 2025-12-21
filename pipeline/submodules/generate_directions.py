@@ -84,7 +84,7 @@ def get_ab_activations(
         cache: Dict[int, List[Tensor]] = {layer: [] for layer in range(n_layers)}
         fwd_pre_hooks = [
             (model_base.model_block_modules[layer], 
-             get_activations_hook(layer, cache, position=position))
+            get_activations_hook(layer, cache, position=position))
             for layer in range(n_layers)
         ]
         

@@ -23,7 +23,10 @@ load_dotenv()
 # Optional: OpenAI for open-ended scoring
 try:
     from openai import OpenAI
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = OpenAI(
+        api_key=os.environ.get("OPENROUTER_API_KEY"),
+        base_url="https://openrouter.ai/api/v1"
+    )
     HAS_OPENAI = True
 except (ImportError, Exception):
     HAS_OPENAI = False
@@ -189,7 +192,7 @@ def score_with_gpt(question: str, answer: str, behavior: str) -> float:
     user_prompt = f"{scoring_instruction}\n\nQuestion:\n{question}\n\nAnswer:\n{answer}"
     
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="openai/gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
