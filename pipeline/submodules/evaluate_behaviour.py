@@ -56,6 +56,8 @@ def evaluate_ab(
     layer: int,
     multipliers: List[float],
     batch_size: int = 8,
+    return_top_logits: bool = False,
+    top_k: int = 10,
 ) -> Dict[float, Dict]:
     """
     Evaluate A/B question probabilities with steering.
@@ -67,13 +69,15 @@ def evaluate_ab(
         layer: Which layer to apply steering
         multipliers: List of steering coefficients to test
         batch_size: Batch size for processing
+        return_top_logits: If True, include top-k predicted tokens (decoded) in results
+        top_k: Number of top tokens to return when return_top_logits is True
         
     Returns:
         Dict mapping multiplier -> {
             'matching_prob': avg probability of matching answer,
             'not_matching_prob': avg probability of not matching answer,
             'behavior_score': avg log(matching) - log(not_matching),
-            'results': list of per-question results
+            'results': list of per-question results (with 'top_tokens' if return_top_logits)
         }
     """
     model = model_base.model
@@ -129,6 +133,21 @@ def evaluate_ab(
             # Get A/B probabilities
             a_probs, b_probs = get_ab_probs(logits, a_token_id, b_token_id)
             
+            # Get top-k tokens if requested
+            top_tokens_batch = None
+            if return_top_logits:
+                last_logits = logits[:, -1, :].to(torch.float64)
+                probs = torch.nn.functional.softmax(last_logits, dim=-1)
+                top_probs, top_ids = torch.topk(probs, top_k, dim=-1)
+                
+                top_tokens_batch = []
+                for b_idx in range(len(batch)):
+                    tokens = [model_base.tokenizer.decode([tid]) for tid in top_ids[b_idx]]
+                    top_tokens_batch.append([
+                        {"token": tok, "prob": top_probs[b_idx, t_idx].item()}
+                        for t_idx, tok in enumerate(tokens)
+                    ])
+            
             # Compute scores per question
             for j, is_a in enumerate(matching_is_a):
                 if is_a:
@@ -140,13 +159,18 @@ def evaluate_ab(
                 
                 score = torch.log(torch.tensor(p_match + 1e-8)) - torch.log(torch.tensor(p_not_match + 1e-8))
                 
-                results.append({
+                result = {
                     "question": questions[j],
                     "matching_answer": batch[j]["positive_answer"],
                     "p_matching": p_match,
                     "p_not_matching": p_not_match,
                     "behavior_score": score.item(),
-                })
+                }
+                
+                if return_top_logits and top_tokens_batch:
+                    result["top_tokens"] = top_tokens_batch[j]
+                
+                results.append(result)
                 
                 total_matching_prob += p_match
                 total_not_matching_prob += p_not_match

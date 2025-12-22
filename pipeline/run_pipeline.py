@@ -41,6 +41,9 @@ def parse_arguments():
     parser.add_argument('--no_gpt_scoring', action='store_true', help='Disable GPT scoring for open-ended')
     parser.add_argument('--scoring_model', type=str, default='anthropic/claude-opus-4.5', 
                         help='OpenRouter model for scoring (e.g., openai/gpt-4o-mini, anthropic/claude-3.5-sonnet)')
+    parser.add_argument('--show_top_logits', action='store_true', 
+                        help='Include top-k predicted tokens in A/B evaluation results')
+    parser.add_argument('--top_k', type=int, default=10, help='Number of top tokens to show (default: 10)')
     return parser.parse_args()
 
 
@@ -157,6 +160,8 @@ def run_pipeline(args):
             layer=layer,
             multipliers=list(cfg.steering_multipliers),
             batch_size=cfg.batch_size,
+            return_top_logits=args.show_top_logits,
+            top_k=args.top_k,
         )
         
         save_evaluation(ab_results, os.path.join(eval_dir, "ab_evaluation.json"))

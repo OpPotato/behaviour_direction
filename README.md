@@ -29,6 +29,15 @@ python -m pipeline.run_pipeline --model_path Qwen/Qwen-7B-Chat
 
 # Results saved to pipeline/runs/Llama-2-7b-chat-hf/survival-instinct/
 
+## Evaluation options
+# Run only evaluations (skip generation/selection)
+python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --skip_generate --skip_select
+
+# Run only open-ended evaluation with GPT scoring
+python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --skip_generate --skip_select --skip_eval_ab
+
+# Show top-k predicted tokens in A/B evaluation (useful for debugging)
+python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --show_top_logits --top_k 10
 
 # Can be run locally
 python visualize_results.py --run_dir pipeline/runs/Llama-2-7b-chat-hf/survival-instinct
