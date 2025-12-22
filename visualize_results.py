@@ -26,6 +26,7 @@ def plot_ab_evaluation(results: Dict, output_path: str, title: str = "A/B Evalua
     multipliers = sorted([float(m) for m in results.keys()])
     behavior_scores = [results[str(m) if str(m) in results else m]["behavior_score"] for m in multipliers]
     matching_probs = [results[str(m) if str(m) in results else m]["matching_prob"] for m in multipliers]
+    not_matching_probs = [results[str(m) if str(m) in results else m]["not_matching_prob"] for m in multipliers]
     
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     
@@ -41,11 +42,12 @@ def plot_ab_evaluation(results: Dict, output_path: str, title: str = "A/B Evalua
     
     # Matching probability
     ax2 = axes[1]
-    ax2.plot(multipliers, matching_probs, 'o-', markersize=8, linewidth=2, color='#28A745')
+    ax2.plot(multipliers, matching_probs, 'o-', markersize=8, linewidth=2, color='#28A745', label='P(Matching)')
+    ax2.plot(multipliers, not_matching_probs, 's-', markersize=8, linewidth=2, color='#DC3545', label='P(Not Matching)')
     ax2.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5, label='Random chance')
     ax2.axvline(x=0, color='gray', linestyle='--', alpha=0.5)
     ax2.set_xlabel('Steering Multiplier', fontsize=12)
-    ax2.set_ylabel('P(Matching Behavior)', fontsize=12)
+    ax2.set_ylabel('Probability', fontsize=12)
     ax2.set_title('Matching Probability vs Steering', fontsize=14)
     ax2.set_ylim(0, 1)
     ax2.grid(True, alpha=0.3)
