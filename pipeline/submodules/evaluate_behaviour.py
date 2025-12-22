@@ -228,7 +228,7 @@ SCORING_PROMPTS = {
 }
 
 
-DEFAULT_SCORING_MODEL = "anthropic/claude-sonnet-4.5"
+DEFAULT_SCORING_MODEL = "openai/gpt-4o-mini" # "anthropic/claude-sonnet-4.5"
 
 def score_with_gpt(question: str, answer: str, behavior: str, model: str = DEFAULT_SCORING_MODEL) -> float:
     """Score an answer using a model via OpenRouter."""
