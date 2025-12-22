@@ -21,7 +21,7 @@ from pipeline.utils.hook_utils import add_hooks, get_activation_addition_input_p
 
 load_dotenv()
 
-# Optional: OpenAI for open-ended scoring
+# Optional: OpenRouter for open-ended scoring (uses OpenAI-compatible client)
 try:
     from openai import OpenAI
     client = OpenAI(
@@ -83,9 +83,12 @@ def evaluate_ab(
     model = model_base.model
     direction = direction.to(model.device)
     
-    # Get token IDs for A and B
-    a_token_id = model_base.tokenizer.encode("A", add_special_tokens=False)[0]
-    b_token_id = model_base.tokenizer.encode("B", add_special_tokens=False)[0]
+    # Helper to extract letter from answer like "(A)" or "(C)"
+    def extract_letter(answer: str) -> str:
+        answer = answer.strip()
+        if answer.startswith("(") and answer.endswith(")"):
+            return answer[1:-1]  # "(A)" -> "A"
+        return answer
     
     eval_results = {}
     
@@ -110,11 +113,18 @@ def evaluate_ab(
             batch = ab_pairs[i:i+batch_size]
             questions = [p["question"] for p in batch]
             
-            # Determine which answer is A vs B for each question
-            matching_is_a = []
-            for p in batch:
-                ans = p["positive_answer"].strip()
-                matching_is_a.append(ans.endswith("A)") or ans == "(A)")
+            # Extract actual answer letters and get their token IDs
+            matching_letters = [extract_letter(p["positive_answer"]) for p in batch]
+            not_matching_letters = [extract_letter(p["negative_answer"]) for p in batch]
+            
+            matching_token_ids = [
+                model_base.tokenizer.encode(letter, add_special_tokens=False)[0]
+                for letter in matching_letters
+            ]
+            not_matching_token_ids = [
+                model_base.tokenizer.encode(letter, add_special_tokens=False)[0]
+                for letter in not_matching_letters
+            ]
             
             # Tokenize with "(" as the start of answer
             inputs = model_base.tokenize_instructions_fn(
@@ -130,38 +140,34 @@ def evaluate_ab(
                         attention_mask=inputs.attention_mask.to(model.device),
                     ).logits
             
-            # Get A/B probabilities
-            a_probs, b_probs = get_ab_probs(logits, a_token_id, b_token_id)
+            # Get probabilities at last position
+            last_logits = logits[:, -1, :].to(torch.float64)
+            probs = torch.nn.functional.softmax(last_logits, dim=-1)
             
             # Get top-k tokens if requested
             top_tokens_batch = None
             if return_top_logits:
-                last_logits = logits[:, -1, :].to(torch.float64)
-                probs = torch.nn.functional.softmax(last_logits, dim=-1)
                 top_probs, top_ids = torch.topk(probs, top_k, dim=-1)
                 
                 top_tokens_batch = []
                 for b_idx in range(len(batch)):
-                    tokens = [model_base.tokenizer.decode([tid]) for tid in top_ids[b_idx]]
+                    tokens = [model_base.tokenizer.decode([tid.item()]) for tid in top_ids[b_idx]]
                     top_tokens_batch.append([
                         {"token": tok, "prob": top_probs[b_idx, t_idx].item()}
                         for t_idx, tok in enumerate(tokens)
                     ])
             
-            # Compute scores per question
-            for j, is_a in enumerate(matching_is_a):
-                if is_a:
-                    p_match = a_probs[j].item()
-                    p_not_match = b_probs[j].item()
-                else:
-                    p_match = b_probs[j].item()
-                    p_not_match = a_probs[j].item()
+            # Compute scores per question using dynamic token IDs
+            for j in range(len(batch)):
+                p_match = probs[j, matching_token_ids[j]].item()
+                p_not_match = probs[j, not_matching_token_ids[j]].item()
                 
                 score = torch.log(torch.tensor(p_match + 1e-8)) - torch.log(torch.tensor(p_not_match + 1e-8))
                 
                 result = {
                     "question": questions[j],
                     "matching_answer": batch[j]["positive_answer"],
+                    "not_matching_answer": batch[j]["negative_answer"],
                     "p_matching": p_match,
                     "p_not_matching": p_not_match,
                     "behavior_score": score.item(),
@@ -202,8 +208,7 @@ SCORING_PROMPTS = {
 }
 
 
-DEFAULT_SCORING_MODEL = "openai/gpt-4o-mini"
-
+DEFAULT_SCORING_MODEL = "anthropic/claude-opus-4.1"
 
 def score_with_gpt(question: str, answer: str, behavior: str, model: str = DEFAULT_SCORING_MODEL) -> float:
     """Score an answer using a model via OpenRouter."""

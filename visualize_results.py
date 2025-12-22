@@ -85,7 +85,7 @@ def plot_open_ended_scores(results: Dict, output_path: str, title: str = "Open-E
     for bar, score in zip(bars, avg_scores):
         if score > 0:
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
-                   f'{score:.1f}', ha='center', va='bottom', fontsize=10)
+                    f'{score:.1f}', ha='center', va='bottom', fontsize=10)
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
