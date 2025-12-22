@@ -49,6 +49,22 @@ def get_ab_probs(
     return probs[:, a_token_id], probs[:, b_token_id]
 
 
+def _build_letter_to_token_ids(tokenizer) -> Dict[str, List[int]]:
+    """
+    Build a mapping from letter -> list of all token IDs that decode to that letter.
+    This handles tokenizers that have multiple token IDs for the same letter.
+    """
+    letter_to_ids = {}
+    for tid in range(tokenizer.vocab_size):
+        decoded = tokenizer.decode([tid])
+        if len(decoded) == 1 and decoded.isalpha():
+            letter = decoded.upper()
+            if letter not in letter_to_ids:
+                letter_to_ids[letter] = []
+            letter_to_ids[letter].append(tid)
+    return letter_to_ids
+
+
 def evaluate_ab(
     model_base: ModelBase,
     ab_pairs: List[Dict[str, str]],
@@ -83,6 +99,9 @@ def evaluate_ab(
     model = model_base.model
     direction = direction.to(model.device)
     
+    # Build mapping from letter -> all token IDs that decode to that letter
+    letter_to_token_ids = _build_letter_to_token_ids(model_base.tokenizer)
+    
     # Helper to extract letter from answer like "(A)" or "(C)"
     def extract_letter(answer: str) -> str:
         answer = answer.strip()
@@ -113,16 +132,16 @@ def evaluate_ab(
             batch = ab_pairs[i:i+batch_size]
             questions = [p["question"] for p in batch]
             
-            # Extract actual answer letters and get their token IDs
-            matching_letters = [extract_letter(p["positive_answer"]) for p in batch]
-            not_matching_letters = [extract_letter(p["negative_answer"]) for p in batch]
+            # Extract actual answer letters and get ALL token IDs that decode to each letter
+            matching_letters = [extract_letter(p["positive_answer"]).upper() for p in batch]
+            not_matching_letters = [extract_letter(p["negative_answer"]).upper() for p in batch]
             
-            matching_token_ids = [
-                model_base.tokenizer.encode(letter, add_special_tokens=False)[0]
+            matching_token_id_lists = [
+                letter_to_token_ids.get(letter, [])
                 for letter in matching_letters
             ]
-            not_matching_token_ids = [
-                model_base.tokenizer.encode(letter, add_special_tokens=False)[0]
+            not_matching_token_id_lists = [
+                letter_to_token_ids.get(letter, [])
                 for letter in not_matching_letters
             ]
             
@@ -157,10 +176,11 @@ def evaluate_ab(
                         for t_idx, tok in enumerate(tokens)
                     ])
             
-            # Compute scores per question using dynamic token IDs
+            # Compute scores per question - sum probabilities across all token IDs for each letter
             for j in range(len(batch)):
-                p_match = probs[j, matching_token_ids[j]].item()
-                p_not_match = probs[j, not_matching_token_ids[j]].item()
+                # Sum probabilities of all tokens that decode to the matching letter
+                p_match = sum(probs[j, tid].item() for tid in matching_token_id_lists[j])
+                p_not_match = sum(probs[j, tid].item() for tid in not_matching_token_id_lists[j])
                 
                 score = torch.log(torch.tensor(p_match + 1e-8)) - torch.log(torch.tensor(p_not_match + 1e-8))
                 
@@ -208,7 +228,7 @@ SCORING_PROMPTS = {
 }
 
 
-DEFAULT_SCORING_MODEL = "anthropic/claude-opus-4.1"
+DEFAULT_SCORING_MODEL = "anthropic/claude-sonnet-4.5"
 
 def score_with_gpt(question: str, answer: str, behavior: str, model: str = DEFAULT_SCORING_MODEL) -> float:
     """Score an answer using a model via OpenRouter."""
@@ -230,7 +250,7 @@ def score_with_gpt(question: str, answer: str, behavior: str, model: str = DEFAU
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        max_tokens=10,
+        max_tokens=20,
         temperature=0.0,
     )
     
