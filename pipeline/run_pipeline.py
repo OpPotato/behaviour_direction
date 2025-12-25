@@ -44,6 +44,8 @@ def parse_arguments():
     parser.add_argument('--show_top_logits', action='store_true', 
                         help='Include top-k predicted tokens in A/B evaluation results')
     parser.add_argument('--top_k', type=int, default=10, help='Number of top tokens to show (default: 10)')
+    parser.add_argument('--eval_thinking', action='store_true',
+                        help='Run open-ended evaluation with thinking (prefills <think>)')
     return parser.parse_args()
 
 
@@ -206,6 +208,42 @@ def run_pipeline(args):
             print(f"  {'-'*10} | {'-'*13} | {'-'*10}")
             for mult in sorted(open_results.keys()):
                 r = open_results[mult]
+                score_str = f"{r['avg_score']:.2f}" if r['avg_score'] is not None else "N/A"
+                print(f"  {mult:>10.1f} | {score_str:>13} | {r['num_scored']:>10}")
+    
+    # =========================================================================
+    # Step 6: Evaluate with open-ended questions (thinking mode)
+    # =========================================================================
+    if args.eval_thinking:
+        print("\n[5c/5] Evaluating open-ended questions (thinking mode)...")
+        if not args.no_gpt_scoring:
+            print(f"  Scoring model: {args.scoring_model}")
+        
+        # Use a subset of multipliers for open-ended (expensive with GPT)
+        open_multipliers = [m for m in cfg.steering_multipliers if m in [-1.0, 0.0, 1.0]]
+        
+        thinking_results = evaluate_open_ended(
+            model_base=model_base,
+            questions=test_open_data[:20],  # Limit for cost
+            direction=direction,
+            layer=layer,
+            multipliers=open_multipliers,
+            behavior=cfg.behavior,
+            max_new_tokens=cfg.max_new_tokens,
+            use_gpt_scoring=not args.no_gpt_scoring,
+            scoring_model=args.scoring_model,
+            thinking_mode=True,
+        )
+        
+        save_evaluation(thinking_results, os.path.join(eval_dir, "open_ended_evaluation_thinking.json"))
+        
+        # Print summary
+        if not args.no_gpt_scoring:
+            print("\n  Open-Ended (Thinking) Evaluation Summary:")
+            print(f"  {'Multiplier':>10} | {'Avg GPT Score':>13} | {'Num Scored':>10}")
+            print(f"  {'-'*10} | {'-'*13} | {'-'*10}")
+            for mult in sorted(thinking_results.keys()):
+                r = thinking_results[mult]
                 score_str = f"{r['avg_score']:.2f}" if r['avg_score'] is not None else "N/A"
                 print(f"  {mult:>10.1f} | {score_str:>13} | {r['num_scored']:>10}")
     

@@ -45,6 +45,9 @@ python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --ski
 # Show top-k predicted tokens in A/B evaluation (useful for debugging)
 python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --show_top_logits --top_k 10
 
+# Run with thinking evaluation (prefills <think> for chain-of-thought)
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --eval_thinking
+
 # Can be run locally
 python visualize_results.py --run_dir pipeline/runs/Llama-2-7b-chat-hf/survival-instinct
 

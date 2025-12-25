@@ -281,6 +281,7 @@ def evaluate_open_ended(
     max_new_tokens: int = 256,
     use_gpt_scoring: bool = True,
     scoring_model: str = DEFAULT_SCORING_MODEL,
+    thinking_mode: bool = False,
 ) -> Dict[float, Dict]:
     """
     Generate open-ended responses with steering and optionally score with GPT.
@@ -295,6 +296,7 @@ def evaluate_open_ended(
         max_new_tokens: Max tokens to generate
         use_gpt_scoring: Whether to score via OpenRouter
         scoring_model: OpenRouter model for scoring (e.g., 'openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet')
+        thinking_mode: If True, prefill with <think> to induce chain-of-thought reasoning
         
     Returns:
         Dict mapping multiplier -> {
@@ -326,8 +328,14 @@ def evaluate_open_ended(
         for item in tqdm(questions, desc=f"mult={multiplier}"):
             question = item["question"]
             
-            # Tokenize
-            inputs = model_base.tokenize_instructions_fn(instructions=[question])
+            # Tokenize (prefill with <think> if thinking mode enabled)
+            if thinking_mode:
+                inputs = model_base.tokenize_instructions_fn(
+                    instructions=[question],
+                    outputs=["<think>"]
+                )
+            else:
+                inputs = model_base.tokenize_instructions_fn(instructions=[question])
             
             # Generate with steering
             with add_hooks(module_forward_pre_hooks=fwd_pre_hooks, module_forward_hooks=[]):
@@ -345,6 +353,10 @@ def evaluate_open_ended(
                 output_ids[0, inputs.input_ids.shape[1]:],
                 skip_special_tokens=True
             ).strip()
+            
+            # Prepend <think> to response for complete output in thinking mode
+            if thinking_mode:
+                response = "<think>" + response
             
             # Score with OpenRouter model if enabled
             score = None
