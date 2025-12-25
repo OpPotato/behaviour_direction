@@ -33,6 +33,11 @@ except (ImportError, Exception):
     HAS_OPENAI = False
     client = None
 
+# Debug logging
+_api_key = os.environ.get("OPENROUTER_API_KEY")
+print(f"[DEBUG] HAS_OPENAI: {HAS_OPENAI}")
+print(f"[DEBUG] client: {client}")
+print(f"[DEBUG] OPENROUTER_API_KEY set: {bool(_api_key)}, length: {len(_api_key) if _api_key else 0}")
 
 # ============================================================================
 # A/B Evaluation (Probability-based)
