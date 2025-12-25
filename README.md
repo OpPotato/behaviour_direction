@@ -27,6 +27,9 @@ python -m pipeline.run_pipeline --model_path google/gemma-7b-it
 # Qwen
 python -m pipeline.run_pipeline --model_path Qwen/Qwen-7B-Chat
 
+# Qwen3
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B
+
 # Results saved to pipeline/runs/Llama-2-7b-chat-hf/survival-instinct/
 
 ## Evaluation options
