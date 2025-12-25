@@ -60,7 +60,7 @@ def plot_ab_evaluation(results: Dict, output_path: str, title: str = "A/B Evalua
     print(f"Saved: {output_path}")
 
 
-def plot_open_ended_scores(results: Dict, output_path: str, title: str = "Open-Ended Evaluation"):
+def plot_open_ended_scores(results: Dict, output_path: str, title: str = "Open-Ended Evaluation", color: str = '#6C5B7B'):
     """
     Plot GPT scores for open-ended responses at different steering levels.
     """
@@ -74,7 +74,7 @@ def plot_open_ended_scores(results: Dict, output_path: str, title: str = "Open-E
     
     fig, ax = plt.subplots(figsize=(8, 5))
     
-    bars = ax.bar(multipliers, avg_scores, width=0.3, color='#6C5B7B', edgecolor='black')
+    bars = ax.bar(multipliers, avg_scores, width=0.3, color=color, edgecolor='black')
     ax.axhline(y=5, color='gray', linestyle='--', alpha=0.5, label='Neutral (5)')
     ax.set_xlabel('Steering Multiplier', fontsize=12)
     ax.set_ylabel('Average GPT Score (0-10)', fontsize=12)
@@ -88,6 +88,74 @@ def plot_open_ended_scores(results: Dict, output_path: str, title: str = "Open-E
         if score > 0:
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.2,
                     f'{score:.1f}', ha='center', va='bottom', fontsize=10)
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
+def plot_open_ended_comparison(
+    regular_results: Dict, 
+    thinking_results: Dict, 
+    output_path: str, 
+    title: str = "Open-Ended Evaluation: Regular vs Thinking"
+):
+    """
+    Plot side-by-side comparison of regular and thinking mode GPT scores.
+    """
+    # Get all multipliers from both results
+    all_multipliers = set([float(m) for m in regular_results.keys()])
+    all_multipliers.update([float(m) for m in thinking_results.keys()])
+    multipliers = sorted(all_multipliers)
+    
+    regular_scores = []
+    thinking_scores = []
+    
+    for m in multipliers:
+        # Regular scores
+        if str(m) in regular_results or m in regular_results:
+            r = regular_results[str(m) if str(m) in regular_results else m]
+            score = r.get("avg_score")
+            regular_scores.append(score if score is not None else 0)
+        else:
+            regular_scores.append(0)
+        
+        # Thinking scores
+        if str(m) in thinking_results or m in thinking_results:
+            r = thinking_results[str(m) if str(m) in thinking_results else m]
+            score = r.get("avg_score")
+            thinking_scores.append(score if score is not None else 0)
+        else:
+            thinking_scores.append(0)
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    x = np.array(multipliers)
+    width = 0.15
+    
+    bars1 = ax.bar(x - width/2, regular_scores, width, label='Regular', color='#6C5B7B', edgecolor='black')
+    bars2 = ax.bar(x + width/2, thinking_scores, width, label='Thinking', color='#F18F01', edgecolor='black')
+    
+    ax.axhline(y=5, color='gray', linestyle='--', alpha=0.5, label='Neutral (5)')
+    ax.set_xlabel('Steering Multiplier', fontsize=12)
+    ax.set_ylabel('Average GPT Score (0-10)', fontsize=12)
+    ax.set_title(title, fontsize=14, fontweight='bold')
+    ax.set_ylim(0, 10)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f'{m:.1f}' for m in multipliers])
+    ax.grid(True, alpha=0.3, axis='y')
+    ax.legend()
+    
+    # Add value labels on bars
+    for bar, score in zip(bars1, regular_scores):
+        if score > 0:
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.15,
+                    f'{score:.1f}', ha='center', va='bottom', fontsize=9)
+    for bar, score in zip(bars2, thinking_scores):
+        if score > 0:
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.15,
+                    f'{score:.1f}', ha='center', va='bottom', fontsize=9)
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -127,7 +195,7 @@ def plot_direction_selection(results: Dict, output_path: str):
     print(f"Saved: {output_path}")
 
 
-def print_summary(run_dir: str, ab_results: Optional[Dict], open_results: Optional[Dict]):
+def print_summary(run_dir: str, ab_results: Optional[Dict], open_results: Optional[Dict], thinking_results: Optional[Dict] = None):
     """Print a text summary of results."""
     print("\n" + "=" * 60)
     print("RESULTS SUMMARY")
@@ -148,6 +216,16 @@ def print_summary(run_dir: str, ab_results: Optional[Dict], open_results: Option
         print("-" * 30)
         for mult in sorted([float(m) for m in open_results.keys()]):
             r = open_results[str(mult) if str(mult) in open_results else mult]
+            score = r.get("avg_score")
+            score_str = f"{score:.2f}" if score is not None else "N/A"
+            print(f"{mult:>10.1f} | {score_str:>13}")
+    
+    if thinking_results:
+        print("\n--- Open-Ended Evaluation (Thinking) ---")
+        print(f"{'Multiplier':>10} | {'Avg GPT Score':>13}")
+        print("-" * 30)
+        for mult in sorted([float(m) for m in thinking_results.keys()]):
+            r = thinking_results[str(mult) if str(mult) in thinking_results else mult]
             score = r.get("avg_score")
             score_str = f"{score:.2f}" if score is not None else "N/A"
             print(f"{mult:>10.1f} | {score_str:>13}")
@@ -183,6 +261,28 @@ def main():
     else:
         print(f"No open-ended evaluation found at {open_path}")
     
+    # Load and plot open-ended thinking evaluation
+    thinking_path = os.path.join(run_dir, "evaluations", "open_ended_evaluation_thinking.json")
+    thinking_results = None
+    if os.path.exists(thinking_path):
+        thinking_results = load_json(thinking_path)
+        plot_open_ended_scores(
+            thinking_results, 
+            os.path.join(output_dir, "open_ended_evaluation_thinking.png"),
+            title="Open-Ended Evaluation (Thinking)",
+            color='#F18F01'
+        )
+    else:
+        print(f"No open-ended thinking evaluation found at {thinking_path}")
+    
+    # Plot comparison if both exist
+    if open_results and thinking_results:
+        plot_open_ended_comparison(
+            open_results,
+            thinking_results,
+            os.path.join(output_dir, "open_ended_comparison.png")
+        )
+    
     # Load and plot direction selection
     select_path = os.path.join(run_dir, "select_direction", "selection_results.json")
     if os.path.exists(select_path):
@@ -192,7 +292,7 @@ def main():
         print(f"No selection results found at {select_path}")
     
     # Print summary
-    print_summary(run_dir, ab_results, open_results)
+    print_summary(run_dir, ab_results, open_results, thinking_results)
 
 
 if __name__ == "__main__":
