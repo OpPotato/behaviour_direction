@@ -47,3 +47,6 @@ python visualize_results.py --run_dir pipeline/runs/Llama-2-7b-chat-hf/survival-
 
 # If running out of space, can run this for previous models
 rm -rf /workspace/.cache/huggingface/hub/models--meta-llama--Llama-2-7b-chat-hf
+
+rm -rf /root/.cache/huggingface/hub/models--meta-llama--*
+rm -rf /root/.cache/huggingface/hub/models--google--*
