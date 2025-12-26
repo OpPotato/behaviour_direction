@@ -212,23 +212,27 @@ def print_summary(run_dir: str, ab_results: Optional[Dict], open_results: Option
     
     if open_results:
         print("\n--- Open-Ended Evaluation ---")
-        print(f"{'Multiplier':>10} | {'Avg GPT Score':>13}")
-        print("-" * 30)
+        print(f"{'Multiplier':>10} | {'Avg Score':>10} | {'Avg Thought':>11}")
+        print("-" * 38)
         for mult in sorted([float(m) for m in open_results.keys()]):
             r = open_results[str(mult) if str(mult) in open_results else mult]
             score = r.get("avg_score")
+            thought_score = r.get("avg_thought_score")
             score_str = f"{score:.2f}" if score is not None else "N/A"
-            print(f"{mult:>10.1f} | {score_str:>13}")
+            thought_str = f"{thought_score:.2f}" if thought_score is not None else "N/A"
+            print(f"{mult:>10.1f} | {score_str:>10} | {thought_str:>11}")
     
     if thinking_results:
         print("\n--- Open-Ended Evaluation (Thinking) ---")
-        print(f"{'Multiplier':>10} | {'Avg GPT Score':>13}")
-        print("-" * 30)
+        print(f"{'Multiplier':>10} | {'Avg Score':>10} | {'Avg Thought':>11}")
+        print("-" * 38)
         for mult in sorted([float(m) for m in thinking_results.keys()]):
             r = thinking_results[str(mult) if str(mult) in thinking_results else mult]
             score = r.get("avg_score")
+            thought_score = r.get("avg_thought_score")
             score_str = f"{score:.2f}" if score is not None else "N/A"
-            print(f"{mult:>10.1f} | {score_str:>13}")
+            thought_str = f"{thought_score:.2f}" if thought_score is not None else "N/A"
+            print(f"{mult:>10.1f} | {score_str:>10} | {thought_str:>11}")
     
     print("\n" + "=" * 60)
 

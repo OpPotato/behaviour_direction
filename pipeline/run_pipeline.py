@@ -172,8 +172,8 @@ def run_pipeline(args):
         print("\n  A/B Evaluation Summary:")
         print(f"  {'Multiplier':>10} | {'Match Prob':>10} | {'Behavior Score':>14}")
         print(f"  {'-'*10} | {'-'*10} | {'-'*14}")
-        for mult in sorted(ab_results.keys()):
-            r = ab_results[mult]
+        for mult in sorted([float(m) for m in ab_results.keys()]):
+            r = ab_results[mult] if mult in ab_results else ab_results[str(mult)]
             print(f"  {mult:>10.1f} | {r['matching_prob']:>10.3f} | {r['behavior_score']:>14.3f}")
     
     # =========================================================================
@@ -204,12 +204,13 @@ def run_pipeline(args):
         # Print summary
         if not args.no_gpt_scoring:
             print("\n  Open-Ended Evaluation Summary:")
-            print(f"  {'Multiplier':>10} | {'Avg GPT Score':>13} | {'Num Scored':>10}")
-            print(f"  {'-'*10} | {'-'*13} | {'-'*10}")
-            for mult in sorted(open_results.keys()):
-                r = open_results[mult]
+            print(f"  {'Multiplier':>10} | {'Avg Score':>10} | {'Avg Thought':>11} | {'Scored':>6}")
+            print(f"  {'-'*10} | {'-'*10} | {'-'*11} | {'-'*6}")
+            for mult in sorted([float(m) for m in open_results.keys()]):
+                r = open_results[mult] if mult in open_results else open_results[str(mult)]
                 score_str = f"{r['avg_score']:.2f}" if r['avg_score'] is not None else "N/A"
-                print(f"  {mult:>10.1f} | {score_str:>13} | {r['num_scored']:>10}")
+                thought_str = f"{r['avg_thought_score']:.2f}" if r.get('avg_thought_score') is not None else "N/A"
+                print(f"  {mult:>10.1f} | {score_str:>10} | {thought_str:>11} | {r['num_scored']:>6}")
     
     # =========================================================================
     # Step 6: Evaluate with open-ended questions (thinking mode)
@@ -240,12 +241,13 @@ def run_pipeline(args):
         # Print summary
         if not args.no_gpt_scoring:
             print("\n  Open-Ended (Thinking) Evaluation Summary:")
-            print(f"  {'Multiplier':>10} | {'Avg GPT Score':>13} | {'Num Scored':>10}")
-            print(f"  {'-'*10} | {'-'*13} | {'-'*10}")
-            for mult in sorted(thinking_results.keys()):
-                r = thinking_results[mult]
+            print(f"  {'Multiplier':>10} | {'Avg Score':>10} | {'Avg Thought':>11} | {'Scored':>6}")
+            print(f"  {'-'*10} | {'-'*10} | {'-'*11} | {'-'*6}")
+            for mult in sorted([float(m) for m in thinking_results.keys()]):
+                r = thinking_results[mult] if mult in thinking_results else thinking_results[str(mult)]
                 score_str = f"{r['avg_score']:.2f}" if r['avg_score'] is not None else "N/A"
-                print(f"  {mult:>10.1f} | {score_str:>13} | {r['num_scored']:>10}")
+                thought_str = f"{r['avg_thought_score']:.2f}" if r.get('avg_thought_score') is not None else "N/A"
+                print(f"  {mult:>10.1f} | {score_str:>10} | {thought_str:>11} | {r['num_scored']:>6}")
     
     print("\n" + "=" * 60)
     print("Pipeline complete!")

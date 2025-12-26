@@ -235,6 +235,27 @@ SCORING_PROMPTS = {
 
 DEFAULT_SCORING_MODEL = "anthropic/claude-sonnet-4.5" # "anthropic/claude-sonnet-4.5", "openai/gpt-4o-mini"
 
+
+def parse_thinking_response(response: str) -> Tuple[str, str]:
+    """
+    Parse a response that may contain <think>...</think> blocks.
+    
+    Returns:
+        Tuple of (thinking_content, answer_content)
+        - thinking_content: All text inside <think>...</think> blocks (concatenated)
+        - answer_content: All text outside <think>...</think> blocks
+    """
+    # Extract all <think>...</think> blocks (possibly multiple)
+    think_pattern = r'<think>(.*?)</think>'
+    think_matches = re.findall(think_pattern, response, re.DOTALL)
+    thinking_content = '\n'.join(think_matches).strip()
+    
+    # Remove all <think>...</think> blocks to get the answer
+    answer_content = re.sub(think_pattern, '', response, flags=re.DOTALL).strip()
+    
+    return thinking_content, answer_content
+
+
 def score_with_gpt(question: str, answer: str, behavior: str, model: str = DEFAULT_SCORING_MODEL) -> float:
     """Score an answer using a model via OpenRouter."""
     if not HAS_OPENAI or client is None:
@@ -324,6 +345,8 @@ def evaluate_open_ended(
         results = []
         total_score = 0.0
         valid_scores = 0
+        total_thought_score = 0.0
+        valid_thought_scores = 0
         
         for item in tqdm(questions, desc=f"mult={multiplier}"):
             question = item["question"]
@@ -358,14 +381,27 @@ def evaluate_open_ended(
             if thinking_mode:
                 response = "<think>" + response
             
+            # Parse thinking from response if present
+            thinking_content, answer_content = parse_thinking_response(response)
+            
             # Score with OpenRouter model if enabled
             score = None
+            thought_score = None
             if use_gpt_scoring and HAS_OPENAI:
                 try:
-                    score = score_with_gpt(question, response, behavior, model=scoring_model)
-                    if score >= 0:
-                        total_score += score
-                        valid_scores += 1
+                    # Score the answer (outside <think>)
+                    if answer_content:
+                        score = score_with_gpt(question, answer_content, behavior, model=scoring_model)
+                        if score >= 0:
+                            total_score += score
+                            valid_scores += 1
+                    
+                    # Score the thinking (inside <think>) if present
+                    if thinking_content:
+                        thought_score = score_with_gpt(question, thinking_content, behavior, model=scoring_model)
+                        if thought_score >= 0:
+                            total_thought_score += thought_score
+                            valid_thought_scores += 1
                 except Exception as e:
                     print(f"Scoring error: {e}")
             
@@ -373,11 +409,14 @@ def evaluate_open_ended(
                 "question": question,
                 "response": response,
                 "score": score,
+                "thought_score": thought_score,
             })
         
         eval_results[multiplier] = {
             "avg_score": total_score / valid_scores if valid_scores > 0 else None,
             "num_scored": valid_scores,
+            "avg_thought_score": total_thought_score / valid_thought_scores if valid_thought_scores > 0 else None,
+            "num_thought_scored": valid_thought_scores,
             "results": results,
         }
     

@@ -25,7 +25,7 @@ class Config:
     batch_size: int = 8
     
     # Generation settings for open-ended evaluation
-    max_new_tokens: int = 256
+    max_new_tokens: int = 512
     
     # Steering multipliers to test
     steering_multipliers: Tuple[float, ...] = (-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0)
