@@ -51,9 +51,7 @@ python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --eval_thinking
 # Can be run locally
 python visualize_results.py --run_dir pipeline/runs/Llama-2-7b-chat-hf/survival-instinct
 
-
-python -m run_completion --model_path Qwen/Qwen3-8B
-
+python -m run_completion --model_path Qwen/Qwen3-8B --enable_tools --max_tool_calls 1
 # If running out of space, can run this for previous models
 rm -rf /workspace/.cache/huggingface/hub/models--meta-llama--Llama-2-7b-chat-hf
 
