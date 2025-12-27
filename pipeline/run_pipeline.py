@@ -23,7 +23,14 @@ from pipeline.config import Config
 from pipeline.model_utils.model_factory import construct_model_base
 from pipeline.submodules.generate_directions import generate_directions
 from pipeline.submodules.select_direction import select_direction
-from pipeline.submodules.evaluate_behaviour import evaluate_ab, evaluate_open_ended, save_evaluation
+from pipeline.submodules.evaluate_behaviour import (
+    evaluate_ab, 
+    evaluate_open_ended, 
+    generate_extended_responses,
+    load_extended_dataset,
+    parse_extended_results,
+    save_evaluation,
+)
 from dataset.load_dataset import load_generate_dataset, load_test_dataset_ab, load_test_dataset_open_ended, get_ab_pairs
 from dotenv import load_dotenv
 
@@ -49,6 +56,15 @@ def parse_arguments():
                         help='Run open-ended evaluation with thinking (prefills <think>)')
     parser.add_argument('--disable_thinking', action='store_true',
                         help='Disable thinking mode by prefilling <think></think> (for Qwen3)')
+    parser.add_argument('--generate_extended', action='store_true',
+                        help='Generate responses for extended Agent Role/Scenario/Choice format')
+    parser.add_argument('--extended_dataset', type=str, 
+                        default='datasets/raw/survival-instinct/dataset_extended.json',
+                        help='Path to extended dataset JSON file')
+    parser.add_argument('--extended_limit', type=int, default=None,
+                        help='Limit number of extended scenarios to process (None = all)')
+    parser.add_argument('--parse_extended', action='store_true',
+                        help='Parse previously generated extended responses (extracts choices/explanations)')
     return parser.parse_args()
 
 
@@ -263,6 +279,65 @@ def run_pipeline(args):
                 score_str = f"{r['avg_score']:.2f}" if r['avg_score'] is not None else "N/A"
                 thought_str = f"{r['avg_thought_score']:.2f}" if r.get('avg_thought_score') is not None else "N/A"
                 print(f"  {mult:>10.1f} | {score_str:>10} | {thought_str:>11} | {r['num_scored']:>6}")
+    
+
+    # =========================================================================
+    # Step 7: Extended evaluation (Agent Role/Scenario/Choice format)
+    # =========================================================================
+    if args.generate_extended:
+        print("\n[6/6] Generating extended scenario responses...")
+        
+        # Load extended dataset
+        extended_path = args.extended_dataset
+        if not os.path.isabs(extended_path):
+            extended_path = os.path.join(os.path.dirname(__file__), "..", extended_path)
+        
+        if not os.path.exists(extended_path):
+            print(f"  Warning: Extended dataset not found at {extended_path}")
+        else:
+            extended_data = load_extended_dataset(extended_path)
+            
+            # Apply limit if specified
+            if args.extended_limit:
+                extended_data = extended_data[:args.extended_limit]
+            
+            print(f"  Extended scenarios: {len(extended_data)}")
+            
+            # Use subset of multipliers
+            extended_multipliers = [m for m in cfg.steering_multipliers if m in [-1.0, 0.0, 1.0]]
+            
+            extended_results = generate_extended_responses(
+                model_base=model_base,
+                extended_dataset=extended_data,
+                direction=direction,
+                layer=layer,
+                multipliers=extended_multipliers,
+                max_new_tokens=cfg.max_new_tokens,
+                thinking_prefill=True,
+            )
+            
+            save_evaluation(extended_results, os.path.join(eval_dir, "extended_evaluation.json"))
+            
+            # Print summary
+            print("\n  Extended Evaluation Summary:")
+            for mult in sorted([float(m) for m in extended_results.keys()]):
+                r = extended_results[mult] if mult in extended_results else extended_results[str(mult)]
+                print(f"  Multiplier {mult:>5.1f}: {len(r['results'])} responses generated")
+    
+    # =========================================================================
+    # Step 8: Parse extended responses (extract choices/explanations)
+    # =========================================================================
+    if args.parse_extended:
+        print("\n[7/7] Parsing extended responses...")
+        
+        extended_results_path = os.path.join(eval_dir, "extended_evaluation.json")
+        
+        if not os.path.exists(extended_results_path):
+            print(f"  Warning: Extended results not found at {extended_results_path}")
+            print("  Run with --generate_extended first to generate responses.")
+        else:
+            parse_extended_results(extended_results_path)
+            print(f"  Parsed results saved to: {extended_results_path}")
     
     print("\n" + "=" * 60)
     print("Pipeline complete!")

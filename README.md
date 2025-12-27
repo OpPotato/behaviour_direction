@@ -51,6 +51,16 @@ python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --eval_thinking
 # Disable thinking mode for Qwen3 (prefills <think></think> to skip chain-of-thought)
 python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --disable_thinking
 
+## Extended Generation (Agent Role/Scenario/Choice format)
+# Generate responses for extended scenarios with steering (no scoring - local only)
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --skip_select --skip_eval_ab --skip_eval_open --generate_extended
+
+# With custom dataset path
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --skip_select --skip_eval_ab --skip_eval_open --generate_extended --extended_dataset datasets/raw/survival-instinct/dataset_extended.json
+
+# Limit number of scenarios (useful for testing)
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --skip_select --skip_eval_ab --skip_eval_open --generate_extended --extended_limit 5
+
 # Can be run locally
 python visualize_results.py --run_dir pipeline/runs/Llama-2-7b-chat-hf/survival-instinct
 
