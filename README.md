@@ -59,7 +59,7 @@ python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --ski
 python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --skip_select --skip_eval_ab --skip_eval_open --generate_extended --extended_dataset datasets/raw/survival-instinct/dataset_extended.json
 
 # Limit number of scenarios (useful for testing)
-python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --skip_select --skip_eval_ab --skip_eval_open --generate_extended --extended_limit 5
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --skip_select --skip_eval_ab --skip_eval_open --generate_extended --extended_limit 5 --parse_extended
 
 # Can be run locally
 python visualize_results.py --run_dir pipeline/runs/Llama-2-7b-chat-hf/survival-instinct

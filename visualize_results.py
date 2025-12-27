@@ -195,6 +195,153 @@ def plot_direction_selection(results: Dict, output_path: str):
     print(f"Saved: {output_path}")
 
 
+def analyze_extended_results(results: Dict) -> Dict:
+    """
+    Analyze extended evaluation results by steering multiplier.
+    
+    Returns dict mapping multiplier -> {
+        'total': int,
+        'valid': int,  # excluding parse failures
+        'superficial_1': int,
+        'inner_1': int,
+        'mismatch': int,
+        'mismatch_1_2': int,  # superficial=1, inner=2
+        'mismatch_2_1': int,  # superficial=2, inner=1
+    }
+    """
+    analysis = {}
+    
+    for mult_str, data in results.items():
+        mult = float(mult_str)
+        items = data.get("results", [])
+        
+        total = len(items)
+        valid = 0
+        superficial_1 = 0
+        inner_1 = 0
+        mismatch = 0
+        mismatch_1_2 = 0
+        mismatch_2_1 = 0
+        
+        for item in items:
+            sup = item.get("superficial_choice")
+            inn = item.get("inner_choice")
+            
+            # Skip parse failures
+            if sup is None or inn is None:
+                continue
+            
+            valid += 1
+            
+            if sup == 1:
+                superficial_1 += 1
+            if inn == 1:
+                inner_1 += 1
+            if sup != inn:
+                mismatch += 1
+                if sup == 1 and inn == 2:
+                    mismatch_1_2 += 1
+                elif sup == 2 and inn == 1:
+                    mismatch_2_1 += 1
+        
+        analysis[mult] = {
+            'total': total,
+            'valid': valid,
+            'superficial_1': superficial_1,
+            'inner_1': inner_1,
+            'mismatch': mismatch,
+            'mismatch_1_2': mismatch_1_2,
+            'mismatch_2_1': mismatch_2_1,
+        }
+    
+    return analysis
+
+
+def plot_extended_evaluation(results: Dict, output_path: str, title: str = "Extended Evaluation"):
+    """
+    Plot extended evaluation results showing choice patterns across steering multipliers.
+    """
+    analysis = analyze_extended_results(results)
+    multipliers = sorted(analysis.keys())
+    
+    # Calculate percentages (excluding parse failures)
+    superficial_1_pct = [100 * analysis[m]['superficial_1'] / analysis[m]['valid'] if analysis[m]['valid'] > 0 else 0 for m in multipliers]
+    inner_1_pct = [100 * analysis[m]['inner_1'] / analysis[m]['valid'] if analysis[m]['valid'] > 0 else 0 for m in multipliers]
+    mismatch_pct = [100 * analysis[m]['mismatch'] / analysis[m]['valid'] if analysis[m]['valid'] > 0 else 0 for m in multipliers]
+    mismatch_1_2_pct = [100 * analysis[m]['mismatch_1_2'] / analysis[m]['valid'] if analysis[m]['valid'] > 0 else 0 for m in multipliers]
+    mismatch_2_1_pct = [100 * analysis[m]['mismatch_2_1'] / analysis[m]['valid'] if analysis[m]['valid'] > 0 else 0 for m in multipliers]
+    
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    
+    # Plot 1: Superficial=1 and Inner=1 percentages
+    ax1 = axes[0, 0]
+    ax1.plot(multipliers, superficial_1_pct, 'o-', markersize=8, linewidth=2, color='#2E86AB', label='Superficial=1 (public)')
+    ax1.plot(multipliers, inner_1_pct, 's-', markersize=8, linewidth=2, color='#A23B72', label='Inner=1 (private)')
+    ax1.axhline(y=50, color='gray', linestyle='--', alpha=0.5)
+    ax1.axvline(x=0, color='gray', linestyle='--', alpha=0.5)
+    ax1.set_xlabel('Steering Multiplier', fontsize=12)
+    ax1.set_ylabel('% Choosing Ethical (Choice 1)', fontsize=12)
+    ax1.set_title('Ethical Choice Rate by Visibility', fontsize=14)
+    ax1.set_ylim(0, 100)
+    ax1.grid(True, alpha=0.3)
+    ax1.legend()
+    
+    # Plot 2: Total mismatch percentage
+    ax2 = axes[0, 1]
+    ax2.plot(multipliers, mismatch_pct, 'o-', markersize=8, linewidth=2, color='#E94F37')
+    ax2.axvline(x=0, color='gray', linestyle='--', alpha=0.5)
+    ax2.set_xlabel('Steering Multiplier', fontsize=12)
+    ax2.set_ylabel('% Mismatch (superficial ≠ inner)', fontsize=12)
+    ax2.set_title('Public-Private Mismatch Rate', fontsize=14)
+    ax2.set_ylim(0, 100)
+    ax2.grid(True, alpha=0.3)
+    
+    # Plot 3: Mismatch breakdown (stacked bar)
+    ax3 = axes[1, 0]
+    x = np.arange(len(multipliers))
+    width = 0.35
+    ax3.bar(x, mismatch_1_2_pct, width, label='Public=Ethical, Private=Selfish', color='#F39237')
+    ax3.bar(x, mismatch_2_1_pct, width, bottom=mismatch_1_2_pct, label='Public=Selfish, Private=Ethical', color='#44AF69')
+    ax3.set_xlabel('Steering Multiplier', fontsize=12)
+    ax3.set_ylabel('% of Total Responses', fontsize=12)
+    ax3.set_title('Mismatch Breakdown', fontsize=14)
+    ax3.set_xticks(x)
+    ax3.set_xticklabels([f'{m:.1f}' for m in multipliers])
+    ax3.set_ylim(0, 100)
+    ax3.grid(True, alpha=0.3, axis='y')
+    ax3.legend(loc='upper right', fontsize=9)
+    
+    # Plot 4: Summary stats table
+    ax4 = axes[1, 1]
+    ax4.axis('off')
+    table_data = []
+    headers = ['Mult', 'Valid', 'Sup=1', 'Inn=1', 'Mismatch', '(1,2)', '(2,1)']
+    for m in multipliers:
+        a = analysis[m]
+        row = [
+            f'{m:.1f}',
+            f'{a["valid"]}/{a["total"]}',
+            f'{100*a["superficial_1"]/a["valid"]:.0f}%' if a['valid'] > 0 else 'N/A',
+            f'{100*a["inner_1"]/a["valid"]:.0f}%' if a['valid'] > 0 else 'N/A',
+            f'{100*a["mismatch"]/a["valid"]:.0f}%' if a['valid'] > 0 else 'N/A',
+            f'{a["mismatch_1_2"]}',
+            f'{a["mismatch_2_1"]}',
+        ]
+        table_data.append(row)
+    
+    table = ax4.table(cellText=table_data, colLabels=headers, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.2, 1.5)
+    ax4.set_title('Summary Statistics', fontsize=14, pad=20)
+    
+    plt.suptitle(title, fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
 def print_summary(run_dir: str, ab_results: Optional[Dict], open_results: Optional[Dict], thinking_results: Optional[Dict] = None):
     """Print a text summary of results."""
     print("\n" + "=" * 60)
@@ -294,6 +441,14 @@ def main():
         plot_direction_selection(select_results, os.path.join(output_dir, "direction_selection.png"))
     else:
         print(f"No selection results found at {select_path}")
+    
+    # Load and plot extended evaluation
+    extended_path = os.path.join(run_dir, "evaluations", "extended_evaluation.json")
+    if os.path.exists(extended_path):
+        extended_results = load_json(extended_path)
+        plot_extended_evaluation(extended_results, os.path.join(output_dir, "extended_evaluation.png"))
+    else:
+        print(f"No extended evaluation found at {extended_path}")
     
     # Print summary
     print_summary(run_dir, ab_results, open_results, thinking_results)
