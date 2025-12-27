@@ -61,7 +61,7 @@ def _build_letter_to_token_ids(tokenizer) -> Dict[str, List[int]]:
     """
     letter_to_ids = {}
     for tid in range(tokenizer.vocab_size):
-        decoded = tokenizer.decode([tid])
+        decoded = tokenizer.decode([tid]).strip()  # Strip whitespace
         if len(decoded) == 1 and decoded.isalpha():
             letter = decoded.upper()
             if letter not in letter_to_ids:
