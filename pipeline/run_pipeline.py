@@ -17,6 +17,7 @@ import random
 import json
 import os
 import argparse
+import functools
 
 from pipeline.config import Config
 from pipeline.model_utils.model_factory import construct_model_base
@@ -46,6 +47,8 @@ def parse_arguments():
     parser.add_argument('--top_k', type=int, default=10, help='Number of top tokens to show (default: 10)')
     parser.add_argument('--eval_thinking', action='store_true',
                         help='Run open-ended evaluation with thinking (prefills <think>)')
+    parser.add_argument('--disable_thinking', action='store_true',
+                        help='Disable thinking mode by prefilling <think></think> (for Qwen3)')
     return parser.parse_args()
 
 
@@ -75,6 +78,18 @@ def run_pipeline(args):
     # Load model
     print("\n[1/5] Loading model...")
     model_base = construct_model_base(cfg.model_path)
+    
+    # Override tokenize function for Qwen3 if disable_thinking is set
+    if args.disable_thinking and 'qwen3' in cfg.model_path.lower():
+        from pipeline.model_utils.qwen3_model import tokenize_instructions_qwen3_chat
+        model_base.tokenize_instructions_fn = functools.partial(
+            tokenize_instructions_qwen3_chat,
+            tokenizer=model_base.tokenizer,
+            system=None,
+            include_trailing_whitespace=True,
+            disable_thinking=True,
+        )
+        print("  [Thinking disabled for Qwen3]")
     
     # =========================================================================
     # Step 1: Load datasets

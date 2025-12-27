@@ -33,6 +33,7 @@ def format_instruction_qwen3_chat(
     output: str = None,
     system: str = None,
     include_trailing_whitespace: bool = True,
+    disable_thinking: bool = False,
 ):
     if system is not None:
         formatted_instruction = QWEN3_CHAT_TEMPLATE_WITH_SYSTEM.format(
@@ -41,9 +42,13 @@ def format_instruction_qwen3_chat(
     else:
         formatted_instruction = QWEN3_CHAT_TEMPLATE.format(instruction=instruction)
 
+    # Append empty think block to skip thinking mode
+    if disable_thinking:
+        formatted_instruction += "<think>\n</think>\n"
+
     if not include_trailing_whitespace:
         formatted_instruction = formatted_instruction.rstrip()
-
+    
     if output is not None:
         formatted_instruction += output
 
@@ -56,6 +61,7 @@ def tokenize_instructions_qwen3_chat(
     outputs: List[str] = None,
     system: str = None,
     include_trailing_whitespace=True,
+    disable_thinking: bool = False,
 ):
     if outputs is not None:
         prompts = [
@@ -64,6 +70,7 @@ def tokenize_instructions_qwen3_chat(
                 output=output,
                 system=system,
                 include_trailing_whitespace=include_trailing_whitespace,
+                disable_thinking=disable_thinking,
             )
             for instruction, output in zip(instructions, outputs)
         ]
@@ -73,6 +80,7 @@ def tokenize_instructions_qwen3_chat(
                 instruction=instruction,
                 system=system,
                 include_trailing_whitespace=include_trailing_whitespace,
+                disable_thinking=disable_thinking,
             )
             for instruction in instructions
         ]
