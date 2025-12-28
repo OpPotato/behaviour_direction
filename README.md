@@ -61,6 +61,24 @@ python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --ski
 # Limit number of scenarios (useful for testing)
 python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --skip_generate --skip_select --skip_eval_ab --skip_eval_open --generate_extended --extended_limit 5 --parse_extended
 
+## Reasoning-Based Direction Generation
+# Alternative to A/B pairs: extract directions from <think>...</think> reasoning traces
+# Requires dataset_extended.json to have "positive_reasoning" and "negative_reasoning" fields
+
+# Generate direction using reasoning traces (last token before </think>)
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --generate_extended
+
+# With mean pooling over all reasoning tokens
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --pooling_strategy mean --generate_extended
+
+# Skip generation and use existing reasoning direction
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --skip_generate --skip_select --generate_extended
+
+# Results saved to:
+#   - Direction: pipeline/runs/<model>/<behavior>/direction_reasoning.pt
+#   - Artifacts: pipeline/runs/<model>/<behavior>/generate_directions_reasoning/
+#   - Evaluation: pipeline/runs/<model>/<behavior>/evaluations/reasoning_extended_evaluation.json
+
 # Can be run locally
 python visualize_results.py --run_dir pipeline/runs/Llama-2-7b-chat-hf/survival-instinct
 

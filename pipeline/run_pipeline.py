@@ -21,7 +21,7 @@ import functools
 
 from pipeline.config import Config
 from pipeline.model_utils.model_factory import construct_model_base
-from pipeline.submodules.generate_directions import generate_directions
+from pipeline.submodules.generate_directions import generate_directions, generate_reasoning_directions
 from pipeline.submodules.select_direction import select_direction
 from pipeline.submodules.evaluate_behaviour import (
     evaluate_ab, 
@@ -65,6 +65,10 @@ def parse_arguments():
                         help='Limit number of extended scenarios to process (None = all)')
     parser.add_argument('--parse_extended', action='store_true',
                         help='Parse previously generated extended responses (extracts choices/explanations)')
+    parser.add_argument('--direction_method', type=str, default='ab', choices=['ab', 'reasoning'],
+                        help='Method for direction generation: ab (short answers) or reasoning (think traces)')
+    parser.add_argument('--pooling_strategy', type=str, default='last', choices=['last', 'mean'],
+                        help='Pooling strategy for reasoning activations: last token or mean pool')
     return parser.parse_args()
 
 
@@ -130,37 +134,82 @@ def run_pipeline(args):
     # =========================================================================
     # Step 2: Generate direction vectors
     # =========================================================================
-    generate_dir = os.path.join(cfg.artifact_path(), "generate_directions")
-    
-    if args.skip_generate and os.path.exists(os.path.join(generate_dir, "mean_diffs.pt")):
-        print("\n[3/5] Loading existing direction vectors...")
-        candidate_directions = torch.load(os.path.join(generate_dir, "mean_diffs.pt"))
+    if args.direction_method == 'ab':
+        generate_dir = os.path.join(cfg.artifact_path(), "generate_directions")
+        mean_diffs_file = "mean_diffs.pt"
+        
+        if args.skip_generate and os.path.exists(os.path.join(generate_dir, mean_diffs_file)):
+            print("\n[3/5] Loading existing direction vectors (A/B method)...")
+            candidate_directions = torch.load(os.path.join(generate_dir, mean_diffs_file))
+        else:
+            print("\n[3/5] Generating direction vectors (A/B method)...")
+            candidate_directions = generate_directions(
+                model_base=model_base,
+                ab_pairs=generate_pairs,
+                artifact_dir=generate_dir,
+                batch_size=cfg.batch_size,
+            )
     else:
-        print("\n[3/5] Generating direction vectors...")
-        candidate_directions = generate_directions(
-            model_base=model_base,
-            ab_pairs=generate_pairs,
-            artifact_dir=generate_dir,
-            batch_size=cfg.batch_size,
-        )
+        # Reasoning method - use extended dataset with reasoning traces
+        generate_dir = os.path.join(cfg.artifact_path(), "generate_directions_reasoning")
+        mean_diffs_file = "mean_diffs_reasoning.pt"
+        
+        # Load extended dataset with reasoning traces
+        extended_path = args.extended_dataset
+        if not os.path.isabs(extended_path):
+            extended_path = os.path.join(os.path.dirname(__file__), "..", extended_path)
+        
+        if not os.path.exists(extended_path):
+            raise FileNotFoundError(f"Extended dataset not found at {extended_path}")
+        
+        reasoning_data = load_extended_dataset(extended_path)
+        
+        # Filter to only entries with reasoning traces
+        reasoning_pairs = [
+            d for d in reasoning_data 
+            if d.get("positive_reasoning") and d.get("negative_reasoning")
+        ]
+        
+        if not reasoning_pairs:
+            raise ValueError("No entries with positive_reasoning and negative_reasoning found in extended dataset")
+        
+        print(f"  Found {len(reasoning_pairs)} entries with reasoning traces")
+        
+        if args.skip_generate and os.path.exists(os.path.join(generate_dir, mean_diffs_file)):
+            print("\n[3/5] Loading existing direction vectors (reasoning method)...")
+            candidate_directions = torch.load(os.path.join(generate_dir, mean_diffs_file))
+        else:
+            print(f"\n[3/5] Generating direction vectors (reasoning method, pooling={args.pooling_strategy})...")
+            candidate_directions = generate_reasoning_directions(
+                model_base=model_base,
+                reasoning_pairs=reasoning_pairs,
+                artifact_dir=generate_dir,
+                batch_size=cfg.batch_size,
+                pooling_strategy=args.pooling_strategy,
+            )
     
     print(f"  Candidate directions shape: {candidate_directions.shape}")
     
     # =========================================================================
     # Step 3: Select best direction
     # =========================================================================
-    select_dir = os.path.join(cfg.artifact_path(), "select_direction")
-    direction_path = os.path.join(cfg.artifact_path(), "direction.pt")
-    metadata_path = os.path.join(cfg.artifact_path(), "direction_metadata.json")
+    if args.direction_method == 'ab':
+        select_dir = os.path.join(cfg.artifact_path(), "select_direction")
+        direction_path = os.path.join(cfg.artifact_path(), "direction.pt")
+        metadata_path = os.path.join(cfg.artifact_path(), "direction_metadata.json")
+    else:
+        select_dir = os.path.join(cfg.artifact_path(), "select_direction_reasoning")
+        direction_path = os.path.join(cfg.artifact_path(), "direction_reasoning.pt")
+        metadata_path = os.path.join(cfg.artifact_path(), "direction_reasoning_metadata.json")
     
     if args.skip_select and os.path.exists(direction_path):
-        print("\n[4/5] Loading existing direction...")
+        print(f"\n[4/5] Loading existing direction ({args.direction_method} method)...")
         direction = torch.load(direction_path)
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
         layer = metadata["layer"]
     else:
-        print("\n[4/5] Selecting best direction...")
+        print(f"\n[4/5] Selecting best direction ({args.direction_method} method)...")
         layer, direction = select_direction(
             model_base=model_base,
             ab_pairs=test_ab_pairs,  # Use test set for selection
@@ -173,7 +222,7 @@ def run_pipeline(args):
         # Save selected direction
         torch.save(direction, direction_path)
         with open(metadata_path, "w") as f:
-            json.dump({"layer": layer}, f, indent=2)
+            json.dump({"layer": layer, "method": args.direction_method}, f, indent=2)
     
     print(f"  Selected layer: {layer}")
     print(f"  Direction shape: {direction.shape}")
@@ -316,10 +365,16 @@ def run_pipeline(args):
                 thinking_prefill=True,
             )
             
-            save_evaluation(extended_results, os.path.join(eval_dir, "extended_evaluation.json"))
+            # Output filename depends on direction method
+            if args.direction_method == 'ab':
+                extended_output_file = "extended_evaluation.json"
+            else:
+                extended_output_file = "reasoning_extended_evaluation.json"
+            
+            save_evaluation(extended_results, os.path.join(eval_dir, extended_output_file))
             
             # Print summary
-            print("\n  Extended Evaluation Summary:")
+            print(f"\n  Extended Evaluation Summary ({args.direction_method} direction):")
             for mult in sorted([float(m) for m in extended_results.keys()]):
                 r = extended_results[mult] if mult in extended_results else extended_results[str(mult)]
                 print(f"  Multiplier {mult:>5.1f}: {len(r['results'])} responses generated")
@@ -328,9 +383,14 @@ def run_pipeline(args):
     # Step 8: Parse extended responses (extract choices/explanations)
     # =========================================================================
     if args.parse_extended:
-        print("\n[7/7] Parsing extended responses...")
+        print(f"\n[7/7] Parsing extended responses ({args.direction_method} direction)...")
         
-        extended_results_path = os.path.join(eval_dir, "extended_evaluation.json")
+        if args.direction_method == 'ab':
+            extended_output_file = "extended_evaluation.json"
+        else:
+            extended_output_file = "reasoning_extended_evaluation.json"
+        
+        extended_results_path = os.path.join(eval_dir, extended_output_file)
         
         if not os.path.exists(extended_results_path):
             print(f"  Warning: Extended results not found at {extended_results_path}")

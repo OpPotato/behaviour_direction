@@ -342,6 +342,105 @@ def plot_extended_evaluation(results: Dict, output_path: str, title: str = "Exte
     print(f"Saved: {output_path}")
 
 
+def plot_extended_comparison(
+    ab_results: Dict, 
+    reasoning_results: Dict, 
+    output_path: str, 
+    title: str = "Extended Evaluation: A/B vs Reasoning Direction"
+):
+    """
+    Plot side-by-side comparison of A/B and reasoning-based direction methods.
+    """
+    ab_analysis = analyze_extended_results(ab_results)
+    reasoning_analysis = analyze_extended_results(reasoning_results)
+    
+    # Get all multipliers from both results
+    all_multipliers = set(ab_analysis.keys())
+    all_multipliers.update(reasoning_analysis.keys())
+    multipliers = sorted(all_multipliers)
+    
+    # Calculate percentages for both methods
+    ab_inner_1_pct = []
+    reasoning_inner_1_pct = []
+    ab_mismatch_pct = []
+    reasoning_mismatch_pct = []
+    
+    for m in multipliers:
+        # A/B method
+        if m in ab_analysis and ab_analysis[m]['valid'] > 0:
+            ab_inner_1_pct.append(100 * ab_analysis[m]['inner_1'] / ab_analysis[m]['valid'])
+            ab_mismatch_pct.append(100 * ab_analysis[m]['mismatch'] / ab_analysis[m]['valid'])
+        else:
+            ab_inner_1_pct.append(0)
+            ab_mismatch_pct.append(0)
+        
+        # Reasoning method
+        if m in reasoning_analysis and reasoning_analysis[m]['valid'] > 0:
+            reasoning_inner_1_pct.append(100 * reasoning_analysis[m]['inner_1'] / reasoning_analysis[m]['valid'])
+            reasoning_mismatch_pct.append(100 * reasoning_analysis[m]['mismatch'] / reasoning_analysis[m]['valid'])
+        else:
+            reasoning_inner_1_pct.append(0)
+            reasoning_mismatch_pct.append(0)
+    
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    x = np.arange(len(multipliers))
+    width = 0.35
+    
+    # Plot 1: Inner choice = 1 (ethical) comparison
+    ax1 = axes[0]
+    bars1 = ax1.bar(x - width/2, ab_inner_1_pct, width, label='A/B Direction', color='#2E86AB', edgecolor='black')
+    bars2 = ax1.bar(x + width/2, reasoning_inner_1_pct, width, label='Reasoning Direction', color='#F18F01', edgecolor='black')
+    ax1.axhline(y=50, color='gray', linestyle='--', alpha=0.5)
+    ax1.set_xlabel('Steering Multiplier', fontsize=12)
+    ax1.set_ylabel('% Choosing Ethical (Inner Choice 1)', fontsize=12)
+    ax1.set_title('Private Ethical Choice Rate', fontsize=14)
+    ax1.set_xticks(x)
+    ax1.set_xticklabels([f'{m:.1f}' for m in multipliers])
+    ax1.set_ylim(0, 100)
+    ax1.grid(True, alpha=0.3, axis='y')
+    ax1.legend()
+    
+    # Add value labels
+    for bar, val in zip(bars1, ab_inner_1_pct):
+        if val > 0:
+            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.0f}%', ha='center', va='bottom', fontsize=8)
+    for bar, val in zip(bars2, reasoning_inner_1_pct):
+        if val > 0:
+            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.0f}%', ha='center', va='bottom', fontsize=8)
+    
+    # Plot 2: Mismatch rate comparison
+    ax2 = axes[1]
+    bars3 = ax2.bar(x - width/2, ab_mismatch_pct, width, label='A/B Direction', color='#2E86AB', edgecolor='black')
+    bars4 = ax2.bar(x + width/2, reasoning_mismatch_pct, width, label='Reasoning Direction', color='#F18F01', edgecolor='black')
+    ax2.set_xlabel('Steering Multiplier', fontsize=12)
+    ax2.set_ylabel('% Mismatch (superficial ≠ inner)', fontsize=12)
+    ax2.set_title('Public-Private Mismatch Rate', fontsize=14)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([f'{m:.1f}' for m in multipliers])
+    ax2.set_ylim(0, 100)
+    ax2.grid(True, alpha=0.3, axis='y')
+    ax2.legend()
+    
+    # Add value labels
+    for bar, val in zip(bars3, ab_mismatch_pct):
+        if val > 0:
+            ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.0f}%', ha='center', va='bottom', fontsize=8)
+    for bar, val in zip(bars4, reasoning_mismatch_pct):
+        if val > 0:
+            ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.0f}%', ha='center', va='bottom', fontsize=8)
+    
+    plt.suptitle(title, fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
 def print_summary(run_dir: str, ab_results: Optional[Dict], open_results: Optional[Dict], thinking_results: Optional[Dict] = None):
     """Print a text summary of results."""
     print("\n" + "=" * 60)
@@ -442,13 +541,35 @@ def main():
     else:
         print(f"No selection results found at {select_path}")
     
-    # Load and plot extended evaluation
+    # Load and plot extended evaluation (A/B direction)
     extended_path = os.path.join(run_dir, "evaluations", "extended_evaluation.json")
+    extended_results = None
     if os.path.exists(extended_path):
         extended_results = load_json(extended_path)
         plot_extended_evaluation(extended_results, os.path.join(output_dir, "extended_evaluation.png"))
     else:
         print(f"No extended evaluation found at {extended_path}")
+    
+    # Load and plot reasoning extended evaluation
+    reasoning_extended_path = os.path.join(run_dir, "evaluations", "reasoning_extended_evaluation.json")
+    reasoning_extended_results = None
+    if os.path.exists(reasoning_extended_path):
+        reasoning_extended_results = load_json(reasoning_extended_path)
+        plot_extended_evaluation(
+            reasoning_extended_results, 
+            os.path.join(output_dir, "reasoning_extended_evaluation.png"),
+            title="Extended Evaluation (Reasoning Direction)"
+        )
+    else:
+        print(f"No reasoning extended evaluation found at {reasoning_extended_path}")
+    
+    # Plot comparison if both exist
+    if extended_results and reasoning_extended_results:
+        plot_extended_comparison(
+            extended_results,
+            reasoning_extended_results,
+            os.path.join(output_dir, "extended_comparison_ab_vs_reasoning.png")
+        )
     
     # Print summary
     print_summary(run_dir, ab_results, open_results, thinking_results)
