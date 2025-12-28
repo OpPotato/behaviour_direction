@@ -353,7 +353,7 @@ def run_pipeline(args):
             print(f"  Extended scenarios: {len(extended_data)}")
             
             # Use subset of multipliers
-            extended_multipliers = [m for m in cfg.steering_multipliers if m in [-1.0, -0.5, 0.0, 0.5, 1.0]]
+            extended_multipliers = [m for m in cfg.steering_multipliers if m in [-0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6]]
             
             extended_results = generate_extended_responses(
                 model_base=model_base,

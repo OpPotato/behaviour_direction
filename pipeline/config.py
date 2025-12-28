@@ -28,7 +28,7 @@ class Config:
     max_new_tokens: int = 1024
     
     # Steering multipliers to test
-    steering_multipliers: Tuple[float, ...] = (-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0)
+    steering_multipliers: Tuple[float, ...] = (-2.0, -1.0, -0.6, -0.5, -0.4, -0.2, 0.0, 0.2, 0.4, 0.5, 0.6, 1.0, 2.0)
     
     # Layer selection settings
     prune_layer_percentage: float = 0.2  # Discard directions from last 20% of layers
