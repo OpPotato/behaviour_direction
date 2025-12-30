@@ -43,7 +43,7 @@ python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --ski
 
 # Run only A/B evaluation
 python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --skip_generate --skip_select --skip_eval_open
-
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --skip_generate --skip_select --skip_eval_open --generate_extended
 
 ### Debugging
 # Show top-k predicted tokens during evaluation
@@ -60,7 +60,9 @@ Extracts directions from `<think>...</think>` reasoning traces. Requires dataset
 python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning
 
 # Use mean pooling over all reasoning tokens
-python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --pooling_strategy mean## Extended Generation
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --pooling_strategy mean
+
+## Extended Generation
 
 Generate responses for extended scenarios (Agent Role/Scenario/Choice format):
 
