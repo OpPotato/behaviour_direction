@@ -246,7 +246,18 @@ def run_pipeline(args):
             top_k=args.top_k,
         )
         
-        save_evaluation(ab_results, os.path.join(eval_dir, "ab_evaluation.json"))
+        if args.direction_method == 'ab':
+            ab_output_file = "ab_evaluation"
+        else:
+            ab_output_file = "reasoning_ab_evaluation"
+
+        # Add thinking suffix if disabled
+        if args.disable_thinking:
+            ab_output_file += "_no_thinking"
+
+        ab_output_file += ".json"
+
+        save_evaluation(ab_results, os.path.join(eval_dir, ab_output_file))
         
         # Print summary
         print("\n  A/B Evaluation Summary:")
