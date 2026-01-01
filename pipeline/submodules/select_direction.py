@@ -196,6 +196,7 @@ def select_direction(
     artifact_dir: str,
     prune_layer_percentage: float = 0.2,
     batch_size: int = 8,
+    steering_coeff: float = 1.0,
 ) -> Tuple[int, Float[Tensor, "d_model"]]:
     """
     Select the best direction vector.
@@ -238,10 +239,10 @@ def select_direction(
     for layer in tqdm(range(n_layers), desc="Evaluating layers"):
         direction = candidate_directions[layer].to(model_base.model.device)
         
-        # Add direction with coefficient +1.0 at this layer
+        # Add direction with configured coefficient at this layer
         fwd_pre_hooks = [(
             model_base.model_block_modules[layer],
-            get_activation_addition_input_pre_hook(vector=direction, coeff=1.0)
+            get_activation_addition_input_pre_hook(vector=direction, coeff=steering_coeff)
         )]
         
         scores = get_behavior_scores(
@@ -253,7 +254,7 @@ def select_direction(
     # Plot results
     plot_scores(
         positive_steering_scores, baseline_mean,
-        "Behavior Score vs Layer (+1.0 steering)",
+        f"Behavior Score vs Layer ({steering_coeff:+.1f} steering)",
         "Behavior Score (higher = more matching)",
         artifact_dir, "positive_steering_scores.png"
     )
@@ -279,6 +280,7 @@ def select_direction(
         "best_layer": best_layer,
         "best_score": best_score,
         "improvement": best_score - baseline_mean,
+        "steering_coeff": steering_coeff,
         "all_scores": positive_steering_scores.tolist(),
     }
     

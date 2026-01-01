@@ -217,6 +217,7 @@ def run_pipeline(args):
             artifact_dir=select_dir,
             prune_layer_percentage=cfg.prune_layer_percentage,
             batch_size=cfg.batch_size,
+            steering_coeff=cfg.selection_steering_coeff,
         )
         
         # Save selected direction
