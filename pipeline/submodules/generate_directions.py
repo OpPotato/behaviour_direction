@@ -151,6 +151,9 @@ def generate_directions(
     # This gives us the direction that represents "behavior matching"
     mean_diff: Float[Tensor, "n_layers d_model"] = (pos_activations - neg_activations).mean(dim=0)
     
+    # Normalize each layer's direction to unit norm
+    mean_diff = mean_diff / (mean_diff.norm(dim=-1, keepdim=True) + 1e-8)
+
     # Verify no NaNs
     assert not mean_diff.isnan().any(), "NaN values in direction vectors!"
     
@@ -347,6 +350,9 @@ def generate_reasoning_directions(
     # Compute mean difference: positive - negative
     mean_diff: Float[Tensor, "n_layers d_model"] = (pos_activations - neg_activations).mean(dim=0)
     
+    # Normalize each layer's direction to unit norm
+    mean_diff = mean_diff / (mean_diff.norm(dim=-1, keepdim=True) + 1e-8)
+
     # Verify no NaNs
     assert not mean_diff.isnan().any(), "NaN values in direction vectors!"
     
