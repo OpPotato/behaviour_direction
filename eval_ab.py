@@ -7,7 +7,7 @@ Usage:
     python eval_ab.py --model Qwen/Qwen3-8B --direction pipeline/runs/Qwen3-8B/survival-instinct/direction_reasoning.pt --layer 20
 
     # Custom multipliers
-    python eval_ab.py --model Qwen/Qwen3-8B --direction pipeline/runs/Qwen3-8B/survival-instinct/direction.pt --layer 20 --multipliers "-1,0,1"
+    python eval_ab.py --model Qwen/Qwen3-8B --direction pipeline/runs/Qwen3-8B/survival-instinct/direction.pt --layer 20 --multipliers=-"-1,0,1"
 
     # With normalization
     python eval_ab.py --model Qwen/Qwen3-8B --direction pipeline/runs/Qwen3-8B/survival-instinct/direction.pt --layer 20 --normalize
