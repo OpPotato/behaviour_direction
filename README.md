@@ -40,6 +40,7 @@ python -m pipeline.run_pipeline --model_path <model> --skip_generate --skip_sele
 
 # Run only open-ended evaluation with GPT scoring
 python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --skip_generate --skip_select --skip_eval_ab
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --skip_generate --skip_select --skip_eval_ab --disable_thinking
 
 # Run only A/B evaluation
 python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --skip_generate --skip_select --skip_eval_open
