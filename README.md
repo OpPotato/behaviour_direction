@@ -44,7 +44,7 @@ python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method re
 
 # Run only A/B evaluation
 python -m pipeline.run_pipeline --model_path meta-llama/Llama-2-7b-chat-hf --skip_generate --skip_select --skip_eval_open
-python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --skip_generate --skip_select --skip_eval_open --generate_extended
+python -m pipeline.run_pipeline --model_path Qwen/Qwen3-8B --direction_method reasoning --skip_generate --skip_select --skip_eval_open
 
 ### Debugging
 # Show top-k predicted tokens during evaluation
