@@ -276,7 +276,7 @@ def run_pipeline(args):
             print(f"  Scoring model: {args.scoring_model}")
         
         # Use a subset of multipliers for open-ended (expensive with GPT)
-        open_multipliers = [m for m in cfg.steering_multipliers if m in [-1.0, 0.0, 1.0]]
+        open_multipliers = [m for m in cfg.steering_multipliers if m in [-0.6, -0.4, -0.2, 0.2, 0.4, 0.6]]#[-1.0, 0.0, 1.0]]
         
         open_results = evaluate_open_ended(
             model_base=model_base,
@@ -290,7 +290,19 @@ def run_pipeline(args):
             scoring_model=args.scoring_model,
         )
         
-        save_evaluation(open_results, os.path.join(eval_dir, "open_ended_evaluation.json"))
+        # Determine output filename based on direction method
+        if args.direction_method == 'ab':
+            open_output_file = "open_ended_evaluation"
+        else:
+            open_output_file = "reasoning_open_ended_evaluation"
+        
+        # Add thinking suffix if disabled
+        if args.disable_thinking:
+            open_output_file += "_no_thinking"
+        
+        open_output_file += ".json"
+        
+        save_evaluation(open_results, os.path.join(eval_dir, open_output_file))
         
         # Print summary
         if not args.no_gpt_scoring:
@@ -327,7 +339,19 @@ def run_pipeline(args):
             thinking_mode=True,
         )
         
-        save_evaluation(thinking_results, os.path.join(eval_dir, "open_ended_evaluation_thinking.json"))
+        # Determine output filename based on direction method
+        if args.direction_method == 'ab':
+            thinking_output_file = "open_ended_evaluation_thinking"
+        else:
+            thinking_output_file = "reasoning_open_ended_evaluation_thinking"
+        
+        # Add no_thinking suffix if disabled
+        if args.disable_thinking:
+            thinking_output_file += "_no_thinking"
+        
+        thinking_output_file += ".json"
+        
+        save_evaluation(thinking_results, os.path.join(eval_dir, thinking_output_file))
         
         # Print summary
         if not args.no_gpt_scoring:
