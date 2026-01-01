@@ -28,11 +28,12 @@ class Config:
     max_new_tokens: int = 1024
     
     # Steering multipliers to test
-    steering_multipliers: Tuple[float, ...] = (-2.0, -1.0, -0.6, -0.5, -0.4, -0.2, 0.0, 0.2, 0.4, 0.5, 0.6, 1.0, 2.0)
+    steering_multipliers: Tuple[float, ...] = (-50.0, -40.0, -30.0, -20.0, -15.0, -10.0, -5.0, -2.0, -1.0, 0.0, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 50.0)
     
     # Layer selection settings
     prune_layer_percentage: float = 0.2  # Discard directions from last 20% of layers
-    
+    selection_steering_coeff: float = 10.0  # Steering coefficient used during layer selection
+
     def artifact_path(self) -> str:
         """Path to save all artifacts for this model."""
         return os.path.join(
