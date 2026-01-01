@@ -15,6 +15,7 @@ the model's "decision state" about which answer to give.
 
 import torch
 import os
+import json
 from typing import List, Dict, Callable
 from jaxtyping import Float
 from torch import Tensor
@@ -151,8 +152,12 @@ def generate_directions(
     # This gives us the direction that represents "behavior matching"
     mean_diff: Float[Tensor, "n_layers d_model"] = (pos_activations - neg_activations).mean(dim=0)
     
+    # Capture original norms before normalizing
+    original_norms = mean_diff.norm(dim=-1)  # [n_layers]
+    print(f"Original direction norms (per layer): min={original_norms.min().item():.4f}, max={original_norms.max().item():.4f}, mean={original_norms.mean().item():.4f}")
+    
     # Normalize each layer's direction to unit norm
-    mean_diff = mean_diff / (mean_diff.norm(dim=-1, keepdim=True) + 1e-8)
+    mean_diff = mean_diff / (original_norms.unsqueeze(-1) + 1e-8)
 
     # Verify no NaNs
     assert not mean_diff.isnan().any(), "NaN values in direction vectors!"
@@ -161,6 +166,16 @@ def generate_directions(
     torch.save(pos_activations, os.path.join(artifact_dir, "pos_activations.pt"))
     torch.save(neg_activations, os.path.join(artifact_dir, "neg_activations.pt"))
     torch.save(mean_diff, os.path.join(artifact_dir, "mean_diffs.pt"))
+    
+    # Save norm metadata
+    norm_metadata = {
+        "original_norms": original_norms.tolist(),
+        "min_norm": original_norms.min().item(),
+        "max_norm": original_norms.max().item(),
+        "mean_norm": original_norms.mean().item(),
+    }
+    with open(os.path.join(artifact_dir, "direction_norms.json"), "w") as f:
+        json.dump(norm_metadata, f, indent=2)
     
     print(f"Direction vectors shape: {mean_diff.shape}")
     print(f"Saved to {artifact_dir}")
@@ -350,8 +365,12 @@ def generate_reasoning_directions(
     # Compute mean difference: positive - negative
     mean_diff: Float[Tensor, "n_layers d_model"] = (pos_activations - neg_activations).mean(dim=0)
     
+    # Capture original norms before normalizing
+    original_norms = mean_diff.norm(dim=-1)  # [n_layers]
+    print(f"Original direction norms (per layer): min={original_norms.min().item():.4f}, max={original_norms.max().item():.4f}, mean={original_norms.mean().item():.4f}")
+    
     # Normalize each layer's direction to unit norm
-    mean_diff = mean_diff / (mean_diff.norm(dim=-1, keepdim=True) + 1e-8)
+    mean_diff = mean_diff / (original_norms.unsqueeze(-1) + 1e-8)
 
     # Verify no NaNs
     assert not mean_diff.isnan().any(), "NaN values in direction vectors!"
@@ -360,6 +379,17 @@ def generate_reasoning_directions(
     torch.save(pos_activations, os.path.join(artifact_dir, "pos_reasoning_activations.pt"))
     torch.save(neg_activations, os.path.join(artifact_dir, "neg_reasoning_activations.pt"))
     torch.save(mean_diff, os.path.join(artifact_dir, "mean_diffs_reasoning.pt"))
+    
+    # Save norm metadata
+    norm_metadata = {
+        "original_norms": original_norms.tolist(),
+        "min_norm": original_norms.min().item(),
+        "max_norm": original_norms.max().item(),
+        "mean_norm": original_norms.mean().item(),
+        "pooling_strategy": pooling_strategy,
+    }
+    with open(os.path.join(artifact_dir, "direction_reasoning_norms.json"), "w") as f:
+        json.dump(norm_metadata, f, indent=2)
     
     print(f"Direction vectors shape: {mean_diff.shape}")
     print(f"Saved to {artifact_dir}")
