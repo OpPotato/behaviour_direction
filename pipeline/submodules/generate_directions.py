@@ -152,12 +152,10 @@ def generate_directions(
     # This gives us the direction that represents "behavior matching"
     mean_diff: Float[Tensor, "n_layers d_model"] = (pos_activations - neg_activations).mean(dim=0)
     
-    # Capture original norms before normalizing
-    original_norms = mean_diff.norm(dim=-1)  # [n_layers]
-    print(f"Original direction norms (per layer): min={original_norms.min().item():.4f}, max={original_norms.max().item():.4f}, mean={original_norms.mean().item():.4f}")
+    # Capture direction norms
+    direction_norms = mean_diff.norm(dim=-1)  # [n_layers]
+    print(f"Original direction norms (per layer): min={direction_norms.min().item():.4f}, max={direction_norms.max().item():.4f}, mean={direction_norms.mean().item():.4f}")
     
-    # Normalize each layer's direction to unit norm
-    mean_diff = mean_diff / (original_norms.unsqueeze(-1) + 1e-8)
 
     # Verify no NaNs
     assert not mean_diff.isnan().any(), "NaN values in direction vectors!"
@@ -169,10 +167,10 @@ def generate_directions(
     
     # Save norm metadata
     norm_metadata = {
-        "original_norms": original_norms.tolist(),
-        "min_norm": original_norms.min().item(),
-        "max_norm": original_norms.max().item(),
-        "mean_norm": original_norms.mean().item(),
+        "direction_norms": direction_norms.tolist(),
+        "min_norm": direction_norms.min().item(),
+        "max_norm": direction_norms.max().item(),
+        "mean_norm": direction_norms.mean().item(),
     }
     with open(os.path.join(artifact_dir, "direction_norms.json"), "w") as f:
         json.dump(norm_metadata, f, indent=2)
@@ -365,12 +363,9 @@ def generate_reasoning_directions(
     # Compute mean difference: positive - negative
     mean_diff: Float[Tensor, "n_layers d_model"] = (pos_activations - neg_activations).mean(dim=0)
     
-    # Capture original norms before normalizing
-    original_norms = mean_diff.norm(dim=-1)  # [n_layers]
-    print(f"Original direction norms (per layer): min={original_norms.min().item():.4f}, max={original_norms.max().item():.4f}, mean={original_norms.mean().item():.4f}")
-    
-    # Normalize each layer's direction to unit norm
-    mean_diff = mean_diff / (original_norms.unsqueeze(-1) + 1e-8)
+    # Capture direction norms
+    direction_norms = mean_diff.norm(dim=-1)  # [n_layers]
+    print(f"Original direction norms (per layer): min={direction_norms.min().item():.4f}, max={direction_norms.max().item():.4f}, mean={direction_norms.mean().item():.4f}")
 
     # Verify no NaNs
     assert not mean_diff.isnan().any(), "NaN values in direction vectors!"
@@ -382,10 +377,10 @@ def generate_reasoning_directions(
     
     # Save norm metadata
     norm_metadata = {
-        "original_norms": original_norms.tolist(),
-        "min_norm": original_norms.min().item(),
-        "max_norm": original_norms.max().item(),
-        "mean_norm": original_norms.mean().item(),
+        "direction_norms": direction_norms.tolist(),
+        "min_norm": direction_norms.min().item(),
+        "max_norm": direction_norms.max().item(),
+        "mean_norm": direction_norms.mean().item(),
         "pooling_strategy": pooling_strategy,
     }
     with open(os.path.join(artifact_dir, "direction_reasoning_norms.json"), "w") as f:
